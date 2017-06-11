@@ -1,148 +1,110 @@
 package com.test.whereeeee;
 
-import android.content.Intent;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.support.v7.widget.Toolbar;
-import android.view.Menu;
-import android.view.MenuItem;
+import android.support.v7.app.AppCompatActivity;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
+import android.view.ViewGroup;
 import android.widget.EditText;
-import android.widget.ListView;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
 
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.database.ChildEventListener;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
+import com.firebase.client.ChildEventListener;
+import com.firebase.client.DataSnapshot;
+import com.firebase.client.Firebase;
+import com.firebase.client.FirebaseError;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
-
-    private FirebaseAuth mFirebaseAuth;
-    private FirebaseUser mFirebaseUser;
-    private DatabaseReference mDatabase;
-    private String mUserId;
+    LinearLayout layout;
+    ImageView sendButton;
+    EditText messageArea;
+    ScrollView scrollView;
+    Firebase reference1, reference2;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+        setContentView(R.layout.activity_chat);
 
-        // Initialize Firebase Auth and Database Reference
-        mFirebaseAuth = FirebaseAuth.getInstance();
-        mFirebaseUser = mFirebaseAuth.getCurrentUser();
-        mDatabase = FirebaseDatabase.getInstance().getReference();
+        layout = (LinearLayout) findViewById(R.id.layout1);
+        sendButton = (ImageView) findViewById(R.id.sendButton);
+        messageArea = (EditText) findViewById(R.id.messageArea);
+        scrollView = (ScrollView) findViewById(R.id.scrollView);
 
-        if (mFirebaseUser == null) {
-            // Not logged in, launch the Log In activity
-            loadLogInView();
-        } else {
-            mUserId = mFirebaseUser.getUid();
+        Firebase.setAndroidContext(this);
+        reference1 = new Firebase("https://test-e6c88.firebaseio.com/messages/" + UserDetails.username + "_" + UserDetails.chatWith);
+        reference2 = new Firebase("https://test-e6c88.firebaseio.com/messages/" + UserDetails.chatWith + "_" + UserDetails.username);
 
-            // Set up ListView
-            final ListView listView = (ListView) findViewById(R.id.listView);
-            final ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, android.R.id.text1);
-            listView.setAdapter(adapter);
+        sendButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String messageText = messageArea.getText().toString();
 
-            // Add items via the Button and EditText at the bottom of the view.
-            final EditText text = (EditText) findViewById(R.id.todoText);
-            final Button button = (Button) findViewById(R.id.addButton);
-            button.setOnClickListener(new View.OnClickListener() {
-                public void onClick(View v) {
-                    Item item = new Item(text.getText().toString());
-                    mDatabase.child("users").child(mUserId).child("items").push().setValue(item);
-                    text.setText("");
+                if (!messageText.equals("")) {
+                    Map<String, String> map = new HashMap<String, String>();
+                    map.put("message", messageText);
+                    map.put("user", UserDetails.username);
+                    reference1.push().setValue(map);
+                    reference2.push().setValue(map);
                 }
-            });
+            }
+        });
 
-            // Use Firebase to populate the list.
-            mDatabase.child("users").child(mUserId).child("items").addChildEventListener(new ChildEventListener() {
-                @Override
-                public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                    adapter.add((String) dataSnapshot.child("title").getValue());
+        reference1.addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                Map map = dataSnapshot.getValue(Map.class);
+                String message = map.get("message").toString();
+                String userName = map.get("user").toString();
+
+                if (userName.equals(UserDetails.username)) {
+                    addMessageBox("You:-\n" + message, 1);
+                } else {
+                    addMessageBox(UserDetails.chatWith + ":-\n" + message, 2);
                 }
+            }
 
-                @Override
-                public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
 
-                }
+            }
 
-                @Override
-                public void onChildRemoved(DataSnapshot dataSnapshot) {
-                    adapter.remove((String) dataSnapshot.child("title").getValue());
-                }
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
 
-                @Override
-                public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+            }
 
-                }
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
 
-                @Override
-                public void onCancelled(DatabaseError databaseError) {
+            }
 
-                }
-            });
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
 
-            // Delete items when clicked
-            listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                    mDatabase.child("users").child(mUserId).child("items")
-                            .orderByChild("title")
-                            .equalTo((String) listView.getItemAtPosition(position))
-                            .addListenerForSingleValueEvent(new ValueEventListener() {
-                                @Override
-                                public void onDataChange(DataSnapshot dataSnapshot) {
-                                    if (dataSnapshot.hasChildren()) {
-                                        DataSnapshot firstChild = dataSnapshot.getChildren().iterator().next();
-                                        firstChild.getRef().removeValue();
-                                    }
-                                }
-
-                                @Override
-                                public void onCancelled(DatabaseError databaseError) {
-
-                                }
-                            });
-                }
-            });
-        }
+            }
+        });
     }
 
-    private void loadLogInView() {
-        Intent intent = new Intent(this, LogInActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-    }
+    public void addMessageBox(String message, int type) {
+        TextView textView = new TextView(MainActivity.this);
+        textView.setText(message);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, 0, 0, 10);
+        textView.setLayoutParams(lp);
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
+//        if(type == 1) {
+//            textView.setBackgroundResource(R.drawable.rounded_corner1);
+//        }
+//        else{
+//            textView.setBackgroundResource(R.drawable.rounded_corner2);
+//        }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_logout) {
-            mFirebaseAuth.signOut();
-            loadLogInView();
-        }
-
-        return super.onOptionsItemSelected(item);
+        layout.addView(textView);
+        scrollView.fullScroll(View.FOCUS_DOWN);
     }
 }
