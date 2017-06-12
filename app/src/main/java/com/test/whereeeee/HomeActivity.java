@@ -19,14 +19,14 @@ public class HomeActivity extends AppCompatActivity {
         mStartBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                goToSignUp();
+                goToLogIn();
             }
         });
     }
 
     // go to next page
-    private void goToSignUp() {
-        Intent goToSignUp = new Intent(getApplication(), SignUpActivity.class);
-        startActivity(goToSignUp);
+    private void goToLogIn() {
+        Intent goToLogIn = new Intent(getApplication(), LogInActivity.class);
+        startActivity(goToLogIn);
     }
 }
